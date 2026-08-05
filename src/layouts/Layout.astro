@@ -1,0 +1,64 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'DuoDash - 多邻国学习数据可视化仪表盘，展示你的学习进度、连胜记录和 XP 历史' } = Astro.props;
+const canonicalURL = Astro.site ? new URL(Astro.url.pathname, Astro.site) : null;
+const ogImageURL = Astro.site ? new URL('/og.jpg', Astro.site) : null;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#58cc02" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1623" />
+    <meta name="author" content="DuoDash" />
+    <meta name="keywords" content="多邻国,Duolingo,学习统计,数据可视化,语言学习,学习进度" />
+    {canonicalURL && <link rel="canonical" href={canonicalURL} />}
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    {canonicalURL && <meta property="og:url" content={canonicalURL} />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    {ogImageURL && <meta property="og:image" content={ogImageURL} />}
+    {ogImageURL && <meta property="og:image:width" content="1200" />}
+    {ogImageURL && <meta property="og:image:height" content="630" />}
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:site_name" content="DuoDash" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {ogImageURL && <meta name="twitter:image" content={ogImageURL} />}
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <title>{title}</title>
+  </head>
+  <body class="bg-surface-background min-h-[100dvh] flex flex-col">
+    <main class="flex-1 flex flex-col">
+      <slot />
+    </main>
+    <footer class="pt-3 pb-6 text-center text-xs sm:text-sm text-neutral-500">
+      © 2025 - {new Date().getFullYear()} · <a
+        href="https://github.com/scavin/duodash"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="footer-link"
+      >DuoDash</a>
+      <span aria-hidden="true"> · </span>
+      <a href="/kiosk" class="footer-link">Kiosk</a>
+      <span aria-hidden="true"> · </span>
+      <a href="/llms.txt" class="footer-link">llms.txt</a>
+    </footer>
+  </body>
+</html>

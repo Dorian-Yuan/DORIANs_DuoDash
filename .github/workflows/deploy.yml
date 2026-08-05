@@ -1,0 +1,72 @@
+name: Update Data & Deploy
+
+on:
+  schedule:
+    # UTC 23:00 / 04:00 / 10:00 = 北京时间(UTC+8) 07:00 / 12:00 / 18:00
+    - cron: '0 23,4,10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch Duolingo snapshot
+        run: npm run snapshot
+        env:
+          DUOLINGO_USERNAME: ${{ secrets.DUOLINGO_USERNAME }}
+          DUOLINGO_JWT: ${{ secrets.DUOLINGO_JWT }}
+          SNAPSHOT_TIMEZONE: Asia/Shanghai
+
+      - name: Build static site
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Open issue if JWT expired
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo,
+              state: 'open',
+              labels: ['jwt-expired'],
+            });
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner, repo,
+                title: 'Duolingo JWT 已过期，需要更新',
+                body: '定时数据更新失败，`DUOLINGO_JWT` 可能已过期。\n\n1. 登录 https://www.duolingo.com\n2. 打开开发者工具 Console，运行：\n   ```js\n   document.cookie.match(/jwt_token=([^;]+)/)?.[1]\n   ```\n3. 将结果更新到仓库 Settings → Secrets and variables → Actions 的 `DUOLINGO_JWT`\n4. 在 Actions 页面手动触发一次 `Update Data & Deploy`\n\n修复后请关闭本 issue。',
+                labels: ['jwt-expired'],
+              });
+            }

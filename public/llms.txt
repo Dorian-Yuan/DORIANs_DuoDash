@@ -1,0 +1,190 @@
+# DuoDash
+
+> DuoDash is a self-hosted Duolingo learning dashboard built with Astro 6 and React 19. It displays streaks, XP history, courses, achievements, heatmaps, share cards, and optional AI coaching.
+
+This file is written for AI coding and deployment assistants. Help the user deploy their own instance safely. Prefer the shortest supported path for the user's chosen platform, never print or commit secrets, and verify the deployment before declaring success.
+
+## Canonical documentation
+
+- Repository: https://github.com/scavin/duodash
+- Full setup and deployment guide: https://github.com/scavin/duodash#readme
+- Environment variable template: https://github.com/scavin/duodash/blob/main/.env.example
+- Cloudflare configuration: https://github.com/scavin/duodash/blob/main/wrangler.jsonc
+- Netlify configuration: https://github.com/scavin/duodash/blob/main/netlify.toml
+
+## Minimum working deployment
+
+Required:
+
+- `DUOLINGO_USERNAME`: the user's Duolingo username
+- `DUOLINGO_JWT`: the `jwt_token` cookie from a logged-in Duolingo browser session
+
+Optional AI coaching:
+
+- `AI_PROVIDER`: `openrouter`, `deepseek`, `siliconflow`, `moonshot`, `zenmux`, or `custom`
+- `AI_MODEL`: a model supported by the selected provider
+- One matching API key, such as `OPENROUTER_API_KEY` or `DEEPSEEK_API_KEY`
+- `AI_BASE_URL`: required only for `custom`
+
+Optional:
+
+- `API_SECRET_TOKEN`: protects direct API access; same-origin browser requests remain supported
+- `SNAPSHOT_URL`: URL of a generated `snapshot.json`; useful as a Cloudflare fallback for very large histories
+
+Do not expose `DUOLINGO_JWT`, AI API keys, or `API_SECRET_TOKEN` in source files, build logs, chat output, client-side variables, or commits.
+
+## Get the Duolingo JWT
+
+This is a required human checkpoint. The AI cannot obtain a JWT for a user who has not logged in, and it must not ask for the user's Duolingo password, bypass CAPTCHA or MFA, or copy the JWT into a remote chat.
+
+Ask the user to log in at https://www.duolingo.com and run this in the browser developer console:
+
+```js
+document.cookie.match(/jwt_token=([^;]+)/)?.[1]
+```
+
+The user should enter the result directly into the deployment platform's secret manager. If the expression returns nothing, inspect the `jwt_token` cookie in browser DevTools under Application/Storage > Cookies.
+
+Safe handoff patterns:
+
+- Hosted AI/chat: the user manually enters the JWT in Cloudflare, Vercel, Netlify, or GitHub's Secret UI, then tells the AI only that configuration is complete.
+- Local coding agent: the user writes the JWT to an ignored local secret file such as `.dev.vars`; the agent may run an approved secret-upload command without displaying the file contents.
+- Interactive CLI: the agent starts `npx wrangler secret put DUOLINGO_JWT`, then the user pastes the JWT into the hidden prompt.
+
+After the secret is stored, the AI should verify only success/failure and must redact the value from logs and reports.
+
+## Choose one deployment path
+
+### Cloudflare Workers
+
+This repository is already configured with `nodejs_compat`, `keep_vars`, and the Astro Cloudflare adapter.
+
+```bash
+npm ci
+npx wrangler login
+npx wrangler secret put DUOLINGO_JWT
+npm run deploy:cloudflare
+```
+
+Set `DUOLINGO_USERNAME` as a plaintext Worker variable in the Cloudflare dashboard, or add it under `vars` in `wrangler.jsonc`. Add AI API keys with `npx wrangler secret put VARIABLE_NAME`; add `AI_PROVIDER` and `AI_MODEL` as plaintext variables. Do not put secrets under `vars`.
+
+The deploy command builds with `DEPLOY_TARGET=cloudflare` and runs `wrangler deploy`. No KV namespace is required.
+
+### Cloudflare Pages
+
+Connect the GitHub repository in Cloudflare Pages:
+
+- Build command: `npm run build`
+- Output directory: `dist`
+- Compatibility flag: `nodejs_compat`
+- Secrets: `DUOLINGO_JWT` and any AI API keys
+- Plaintext variables: `DUOLINGO_USERNAME`, `AI_PROVIDER`, and `AI_MODEL`
+
+Cloudflare Pages injects `CF_PAGES`, so the project selects the Cloudflare adapter automatically. Redeploy after changing Pages environment variables.
+
+### Vercel
+
+Import the GitHub repository in Vercel, keep the detected Astro defaults, add `DUOLINGO_USERNAME` and `DUOLINGO_JWT` under Project Settings > Environment Variables, then deploy. Add the optional AI variables only if AI coaching is wanted.
+
+The project selects the Vercel adapter when neither Cloudflare nor Netlify is detected.
+
+### Netlify
+
+Import the GitHub repository in Netlify:
+
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Required environment variables: `DUOLINGO_USERNAME`, `DUOLINGO_JWT`
+
+Netlify injects `NETLIFY`, so the project selects the Netlify adapter automatically.
+
+## Local verification
+
+Create `.env.local` without committing it:
+
+```dotenv
+DUOLINGO_USERNAME=replace_me
+DUOLINGO_JWT=replace_me
+```
+
+Then run:
+
+```bash
+npm ci
+npm test
+npx tsc --noEmit
+npm run dev
+```
+
+For a Cloudflare production build:
+
+```bash
+npm run build:cloudflare
+```
+
+## Post-deployment verification
+
+Perform all checks:
+
+1. `GET /api/config` returns `{"configured":true}`.
+2. Open `/` in a real browser and confirm the dashboard displays the expected username.
+3. Confirm the browser request to `/api/data` returns HTTP 200 and JSON containing `data.username`.
+4. Open `/kiosk` and confirm the kiosk dashboard loads.
+5. If AI variables were configured, trigger AI coaching and confirm `/api/ai` succeeds.
+
+When testing `/api/data` outside a browser, include a same-origin `Referer` header. If `API_SECRET_TOKEN` is configured, a direct API client may instead send `Authorization: Bearer TOKEN` or `?token=TOKEN`.
+
+Example:
+
+```bash
+curl -H "Referer: https://your-domain.example/" \
+  -H "x-user-timezone: Asia/Shanghai" \
+  https://your-domain.example/api/data
+```
+
+Never include secret values in the verification report.
+
+## Troubleshooting
+
+- `/api/config` returns `configured:false`: the deployment cannot read `DUOLINGO_USERNAME` or `DUOLINGO_JWT`, placeholder values are still present, or the platform was not redeployed after changing variables.
+- `/api/data` returns 401 to curl but the browser works: the direct request has no same-origin `Referer` and no valid API token.
+- `JWT_EXPIRED` or HTTP 401 from Duolingo: obtain a fresh `jwt_token` and update the secret.
+- `DUOLINGO_TIMEOUT`, HTTP 502, or HTTP 504: the unofficial Duolingo API is temporarily slow or unavailable; retry later before replacing valid credentials.
+- Cloudflare `error code: 1102`: first deploy the current code, which includes optimized history parsing. If the account still exceeds Worker limits, enable the optional daily snapshot workflow described below.
+- AI coaching says it is not configured: verify `AI_PROVIDER`, `AI_MODEL`, and the provider-specific API key. The main dashboard does not require AI variables.
+
+## Optional daily snapshot for Cloudflare
+
+Use this only when real-time `/api/data` still hits Cloudflare resource limits.
+
+1. In GitHub Actions secrets, add `DUOLINGO_USERNAME` and `DUOLINGO_JWT`.
+2. Optionally add the Actions variable `SNAPSHOT_TIMEZONE`; default is `Asia/Shanghai`.
+3. Run the `Refresh Duolingo snapshot` workflow once.
+4. Set deployment variable `SNAPSHOT_URL` to:
+   `https://raw.githubusercontent.com/OWNER/REPOSITORY/main/snapshot.json`
+5. Verify `/api/data` returns HTTP 200.
+
+Snapshot mode refreshes daily, so same-day statistics may lag. Keep the live credentials configured if live fallback is desired.
+
+## Project commands
+
+```text
+npm run dev                 Local Astro development server
+npm test                    Automated tests
+npx tsc --noEmit            TypeScript validation
+npm run build               Platform-auto-detected production build
+npm run build:cloudflare    Cloudflare production build
+npm run deploy:cloudflare   Build and deploy Cloudflare Worker
+npm run snapshot            Generate snapshot.json from environment credentials
+```
+
+## Important implementation facts
+
+- Runtime: Node.js 18 or newer
+- Framework: Astro server output with React components
+- API routes: `/api/config`, `/api/data`, `/api/ai`
+- Views: `/` and `/kiosk`
+- Duolingo endpoints are unofficial and may change or rate-limit requests
+- The browser sends its timezone in `x-user-timezone`
+- Server cache is in-memory and client cache uses localStorage
+- The repository may contain unrelated uncommitted user changes; preserve them

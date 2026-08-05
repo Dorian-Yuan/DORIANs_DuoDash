@@ -1,0 +1,38 @@
+{
+  "name": "duodash",
+  "type": "module",
+  "version": "2.0.0",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "snapshot": "tsx scripts/snapshot.ts",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@astrojs/react": "^5.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@zumer/snapdom": "^2.0.1",
+    "astro": "^6.1.1",
+    "lucide-react": "^1.16.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.5.1",
+    "tailwindcss": "^3.4.19"
+  },
+  "devDependencies": {
+    "@astrojs/cloudflare": "^13.7.0",
+    "@astrojs/netlify": "^7.0.6",
+    "@astrojs/vercel": "^10.0.4",
+    "ajv": "^8.18.0",
+    "autoprefixer": "^10.4.23",
+    "tsx": "^4.23.7",
+    "typescript": "~5.9.3"
+  },
+  "overrides": {
+    "path-to-regexp": "6.3.0",
+    "ws": "^8.21.0"
+  }
+}
