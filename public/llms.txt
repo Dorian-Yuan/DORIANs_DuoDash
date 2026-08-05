@@ -1,190 +1,135 @@
-# DuoDash
+# DuoDash (GitHub Pages)
 
-> DuoDash is a self-hosted Duolingo learning dashboard built with Astro 6 and React 19. It displays streaks, XP history, courses, achievements, heatmaps, share cards, and optional AI coaching.
+> 多邻国（Duolingo）学习数据仪表盘，纯静态站点，托管于 GitHub Pages。数据由 GitHub Actions 定时调用 Duolingo 非官方接口抓取，生成 `public/snapshot.json` 后随站点构建部署，前端直接读取该快照渲染。无自建后端。
 
-This file is written for AI coding and deployment assistants. Help the user deploy their own instance safely. Prefer the shortest supported path for the user's chosen platform, never print or commit secrets, and verify the deployment before declaring success.
+本文供 AI 编码 / 部署助手阅读，帮助复刻或维护本项目。遵守安全原则：绝不打印或提交 `DUOLINGO_JWT`，部署完成前先验证。
 
-## Canonical documentation
+## 仓库与线上地址
 
-- Repository: https://github.com/scavin/duodash
-- Full setup and deployment guide: https://github.com/scavin/duodash#readme
-- Environment variable template: https://github.com/scavin/duodash/blob/main/.env.example
-- Cloudflare configuration: https://github.com/scavin/duodash/blob/main/wrangler.jsonc
-- Netlify configuration: https://github.com/scavin/duodash/blob/main/netlify.toml
+- 仓库: https://github.com/Dorian-Yuan/DORIANs_DuoDash
+- 线上: https://dorian-yuan.github.io/DORIANs_DuoDash/
+- 大屏模式: https://dorian-yuan.github.io/DORIANs_DuoDash/kiosk/
+- 数据快照: https://dorian-yuan.github.io/DORIANs_DuoDash/snapshot.json
+- 本项目基于: https://github.com/scavin/duodash（仅做静态化改造）
 
-## Minimum working deployment
+## 架构
 
-Required:
+```
+GitHub Actions（每天北京时间 07:00 / 12:00 / 18:00，cron "0 23,4,10 * * *" UTC）
+  │  读取 Secrets: DUOLINGO_USERNAME / DUOLINGO_JWT
+  ▼
+scripts/snapshot.ts ── 调 Duolingo API ──► public/snapshot.json
+  ▼ npm run build（Astro output: static，base: /DORIANs_DuoDash/）
+dist/ ── actions/deploy-pages ──► GitHub Pages
+```
 
-- `DUOLINGO_USERNAME`: the user's Duolingo username
-- `DUOLINGO_JWT`: the `jwt_token` cookie from a logged-in Duolingo browser session
+- 站点为静态文件，前端 `src/hooks/useDashboardData.ts` 直接 `fetch(<base>/snapshot.json)` 渲染
+- 快照按固定时区（`SNAPSHOT_TIMEZONE`，默认 `Asia/Shanghai`）聚合
+- 定时工作流失败（如 JWT 过期）会自动在仓库创建 issue 提醒
 
-Optional AI coaching:
+## 最小可用配置（GitHub Actions Secrets）
 
-- `AI_PROVIDER`: `openrouter`, `deepseek`, `siliconflow`, `moonshot`, `zenmux`, or `custom`
-- `AI_MODEL`: a model supported by the selected provider
-- One matching API key, such as `OPENROUTER_API_KEY` or `DEEPSEEK_API_KEY`
-- `AI_BASE_URL`: required only for `custom`
+必须：
 
-Optional:
+- `DUOLINGO_USERNAME`: Duolingo 用户名（个人主页 URL 末尾的 handle，非邮箱）
+- `DUOLINGO_JWT`: 登录后浏览器 `jwt_token` Cookie 值
 
-- `API_SECRET_TOKEN`: protects direct API access; same-origin browser requests remain supported
-- `SNAPSHOT_URL`: URL of a generated `snapshot.json`; useful as a Cloudflare fallback for very large histories
+可选：
 
-Do not expose `DUOLINGO_JWT`, AI API keys, or `API_SECRET_TOKEN` in source files, build logs, chat output, client-side variables, or commits.
+- `SNAPSHOT_TIMEZONE`: 快照聚合时区，默认 `Asia/Shanghai`
 
-## Get the Duolingo JWT
+不得在任何源文件、构建日志、聊天内容或提交中暴露 `DUOLINGO_JWT`。
 
-This is a required human checkpoint. The AI cannot obtain a JWT for a user who has not logged in, and it must not ask for the user's Duolingo password, bypass CAPTCHA or MFA, or copy the JWT into a remote chat.
+## 获取 Duolingo JWT（人工步骤，AI 不可代为完成）
 
-Ask the user to log in at https://www.duolingo.com and run this in the browser developer console:
+AI 不得索要用户密码、绕过验证码 / MFA，也不得要求用户把 JWT 发给聊天工具。
+
+让用户：
+
+1. 登录 https://www.duolingo.com
+2. 按 F12 打开控制台，运行:
 
 ```js
 document.cookie.match(/jwt_token=([^;]+)/)?.[1]
 ```
 
-The user should enter the result directly into the deployment platform's secret manager. If the expression returns nothing, inspect the `jwt_token` cookie in browser DevTools under Application/Storage > Cookies.
+3. 把输出值直接粘贴到 GitHub 仓库 Settings → Secrets and variables → Actions → `DUOLINGO_JWT`
 
-Safe handoff patterns:
+> JWT 会在登出、清除 Cookie 或改密码后失效（经验上约 30 天）。过期时定时任务失败并自动开 issue；更新 Secret 后手动触发一次工作流即可。
 
-- Hosted AI/chat: the user manually enters the JWT in Cloudflare, Vercel, Netlify, or GitHub's Secret UI, then tells the AI only that configuration is complete.
-- Local coding agent: the user writes the JWT to an ignored local secret file such as `.dev.vars`; the agent may run an approved secret-upload command without displaying the file contents.
-- Interactive CLI: the agent starts `npx wrangler secret put DUOLINGO_JWT`, then the user pastes the JWT into the hidden prompt.
+## 部署 / 更新（无需后端）
 
-After the secret is stored, the AI should verify only success/failure and must redact the value from logs and reports.
+站点与数据完全由 GitHub Actions 工作流（`.github/workflows/deploy.yml`）维护:
 
-## Choose one deployment path
+- 定时触发（每天 3 次）或手动 `workflow_dispatch`
+- 流程: `npm ci` → `npm run snapshot`（读 Secrets 生成 `public/snapshot.json`）→ `npm run build` → `actions/deploy-pages`
 
-### Cloudflare Workers
+Secrets 未配置或凭据过期时，快照步骤会失败并中止部署（不会用错误数据上线）。
 
-This repository is already configured with `nodejs_compat`, `keep_vars`, and the Astro Cloudflare adapter.
+## 本地开发
 
 ```bash
 npm ci
-npx wrangler login
-npx wrangler secret put DUOLINGO_JWT
-npm run deploy:cloudflare
+npm run dev        # http://localhost:4321/DORIANs_DuoDash/
+npm run build      # 静态构建到 dist/
+npm run preview    # 预览构建产物
 ```
 
-Set `DUOLINGO_USERNAME` as a plaintext Worker variable in the Cloudflare dashboard, or add it under `vars` in `wrangler.jsonc`. Add AI API keys with `npx wrangler secret put VARIABLE_NAME`; add `AI_PROVIDER` and `AI_MODEL` as plaintext variables. Do not put secrets under `vars`.
-
-The deploy command builds with `DEPLOY_TARGET=cloudflare` and runs `wrangler deploy`. No KV namespace is required.
-
-### Cloudflare Pages
-
-Connect the GitHub repository in Cloudflare Pages:
-
-- Build command: `npm run build`
-- Output directory: `dist`
-- Compatibility flag: `nodejs_compat`
-- Secrets: `DUOLINGO_JWT` and any AI API keys
-- Plaintext variables: `DUOLINGO_USERNAME`, `AI_PROVIDER`, and `AI_MODEL`
-
-Cloudflare Pages injects `CF_PAGES`, so the project selects the Cloudflare adapter automatically. Redeploy after changing Pages environment variables.
-
-### Vercel
-
-Import the GitHub repository in Vercel, keep the detected Astro defaults, add `DUOLINGO_USERNAME` and `DUOLINGO_JWT` under Project Settings > Environment Variables, then deploy. Add the optional AI variables only if AI coaching is wanted.
-
-The project selects the Vercel adapter when neither Cloudflare nor Netlify is detected.
-
-### Netlify
-
-Import the GitHub repository in Netlify:
-
-- Build command: `npm run build`
-- Publish directory: `dist`
-- Required environment variables: `DUOLINGO_USERNAME`, `DUOLINGO_JWT`
-
-Netlify injects `NETLIFY`, so the project selects the Netlify adapter automatically.
-
-## Local verification
-
-Create `.env.local` without committing it:
+本地拉取真实数据（可选）: 创建 `.env.local`（已被 .gitignore 忽略）:
 
 ```dotenv
-DUOLINGO_USERNAME=replace_me
-DUOLINGO_JWT=replace_me
+DUOLINGO_USERNAME=your_username
+DUOLINGO_JWT=your_jwt_token_here
+SNAPSHOT_TIMEZONE=Asia/Shanghai
 ```
-
-Then run:
 
 ```bash
-npm ci
-npm test
-npx tsc --noEmit
-npm run dev
+npm run snapshot   # 生成 public/snapshot.json
 ```
 
-For a Cloudflare production build:
+未配置凭据时页面会显示引导界面，可点「预览演示数据」体验完整功能。
 
-```bash
-npm run build:cloudflare
-```
+## 环境变量
 
-## Post-deployment verification
+| 变量 | 必填 | 说明 |
+| :--- | :--: | :--- |
+| `DUOLINGO_USERNAME` | ✅ | Duolingo 用户名 |
+| `DUOLINGO_JWT` | ✅ | Duolingo JWT Token |
+| `SNAPSHOT_TIMEZONE` | 可选 | 快照聚合时区（默认 `Asia/Shanghai`） |
 
-Perform all checks:
+## 数据来源（Duolingo 非官方接口）
 
-1. `GET /api/config` returns `{"configured":true}`.
-2. Open `/` in a real browser and confirm the dashboard displays the expected username.
-3. Confirm the browser request to `/api/data` returns HTTP 200 and JSON containing `data.username`.
-4. Open `/kiosk` and confirm the kiosk dashboard loads.
-5. If AI variables were configured, trigger AI coaching and confirm `/api/ai` succeeds.
+| 接口 | 用途 |
+| --- | --- |
+| `GET /2017-06-30/users?username={username}` | 解析用户 ID |
+| `GET /2023-05-23/users/{id}` | 用户主数据（连胜、XP、段位、全部课程） |
+| `GET /2017-06-30/users/{id}/xp_summaries?startDate=1970-01-01` | 完整学习历史 |
 
-When testing `/api/data` outside a browser, include a same-origin `Referer` header. If `API_SECRET_TOKEN` is configured, a direct API client may instead send `Authorization: Bearer TOKEN` or `?token=TOKEN`.
+接口为非官方，可能变更或限流，脚本已内置自动重试（网络错误 / 429 / 5xx 退避重试，401/403 视为凭据过期不重试）。
 
-Example:
+## 部署后验证
 
-```bash
-curl -H "Referer: https://your-domain.example/" \
-  -H "x-user-timezone: Asia/Shanghai" \
-  https://your-domain.example/api/data
-```
+1. 访问线上首页，确认展示目标用户名与数据（非演示数据）
+2. `GET <base>/snapshot.json` 返回 HTTP 200 且含 `data.username`
+3. 访问 `<base>/kiosk/` 确认大屏视图正常
+4. 确认截图、分享卡片功能正常（纯客户端）
+5. 检查 GitHub Actions 工作流 run 状态
 
-Never include secret values in the verification report.
+## 故障排查
 
-## Troubleshooting
+- **数据不更新**: 快照每天仅 3 次；可手动触发工作流立即刷新
+- **定时任务失败、自动开了 issue**: `DUOLINGO_JWT` 过期，按 issue 步骤更新 Secret
+- **「无法解析用户 ID」**: `DUOLINGO_USERNAME` 拼写错误，或 Duolingo 接口短暂异常（脚本会自动重试）
+- **Duolingo HTTP 401 / 403**: JWT 过期，重新获取并更新 Secret
+- **页面空白 / 资源 404**: GitHub Pages 项目站路径大小写敏感，确保 Astro `base` 与仓库名大小写完全一致（本仓库为 `/DORIANs_DuoDash/`）
+- **本地浏览器需要强刷**: 页面 CDN 缓存约数分钟，用 Ctrl+F5
 
-- `/api/config` returns `configured:false`: the deployment cannot read `DUOLINGO_USERNAME` or `DUOLINGO_JWT`, placeholder values are still present, or the platform was not redeployed after changing variables.
-- `/api/data` returns 401 to curl but the browser works: the direct request has no same-origin `Referer` and no valid API token.
-- `JWT_EXPIRED` or HTTP 401 from Duolingo: obtain a fresh `jwt_token` and update the secret.
-- `DUOLINGO_TIMEOUT`, HTTP 502, or HTTP 504: the unofficial Duolingo API is temporarily slow or unavailable; retry later before replacing valid credentials.
-- Cloudflare `error code: 1102`: first deploy the current code, which includes optimized history parsing. If the account still exceeds Worker limits, enable the optional daily snapshot workflow described below.
-- AI coaching says it is not configured: verify `AI_PROVIDER`, `AI_MODEL`, and the provider-specific API key. The main dashboard does not require AI variables.
+## 重要实现事实
 
-## Optional daily snapshot for Cloudflare
-
-Use this only when real-time `/api/data` still hits Cloudflare resource limits.
-
-1. In GitHub Actions secrets, add `DUOLINGO_USERNAME` and `DUOLINGO_JWT`.
-2. Optionally add the Actions variable `SNAPSHOT_TIMEZONE`; default is `Asia/Shanghai`.
-3. Run the `Refresh Duolingo snapshot` workflow once.
-4. Set deployment variable `SNAPSHOT_URL` to:
-   `https://raw.githubusercontent.com/OWNER/REPOSITORY/main/snapshot.json`
-5. Verify `/api/data` returns HTTP 200.
-
-Snapshot mode refreshes daily, so same-day statistics may lag. Keep the live credentials configured if live fallback is desired.
-
-## Project commands
-
-```text
-npm run dev                 Local Astro development server
-npm test                    Automated tests
-npx tsc --noEmit            TypeScript validation
-npm run build               Platform-auto-detected production build
-npm run build:cloudflare    Cloudflare production build
-npm run deploy:cloudflare   Build and deploy Cloudflare Worker
-npm run snapshot            Generate snapshot.json from environment credentials
-```
-
-## Important implementation facts
-
-- Runtime: Node.js 18 or newer
-- Framework: Astro server output with React components
-- API routes: `/api/config`, `/api/data`, `/api/ai`
-- Views: `/` and `/kiosk`
-- Duolingo endpoints are unofficial and may change or rate-limit requests
-- The browser sends its timezone in `x-user-timezone`
-- Server cache is in-memory and client cache uses localStorage
-- The repository may contain unrelated uncommitted user changes; preserve them
+- 运行时: Node.js >= 22.12（Astro 6 要求；workflow 使用 Node 24）
+- 框架: Astro 6（`output: 'static'`）+ React 19 + Recharts + Tailwind
+- 无 API 路由、无服务端中间件、无 AI 教练（已从仪表盘移除）
+- 视图: `/`（标准仪表盘）、`/kiosk`（大屏）
+- 客户端缓存: `localStorage`，跨天自动失效
+- 静态资源一律使用 `import.meta.env.BASE_URL` 前缀，不得写死根路径 `/`
+- 仓库 `main` 分支部署；GitHub Pages 已配置 `build_type: workflow`
