@@ -153,7 +153,7 @@ export function AiCoach({ userData }: AiCoachProps): ReactElement {
         <div className="flex items-start gap-3 sm:gap-4">
           <div className="hidden sm:block flex-shrink-0">
             <img
-              src="/duo-owl.svg"
+              src={`${import.meta.env.BASE_URL}duo-owl.svg`}
               alt="Duo"
               width="64"
               height="64"

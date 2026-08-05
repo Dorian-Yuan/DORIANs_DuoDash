@@ -1,12 +1,10 @@
 import { memo } from 'react';
 import type { ReactElement } from 'react';
-import { ShareIcon, RefreshIcon } from '../icons';
+import { ShareIcon } from '../icons';
 import { CACHE_TTL_MS } from '../../constants/config';
 
 interface NavbarProps {
-  loading: boolean;
   lastUpdated: number | null;
-  onRefresh: () => void;
   onShare?: () => void;
 }
 
@@ -23,7 +21,7 @@ function getUpdateStatusText(loading: boolean, lastUpdated: number | null, now: 
   return '尚未更新';
 }
 
-export const Navbar = memo(function Navbar({ loading, lastUpdated, onRefresh, onShare }: NavbarProps): ReactElement {
+export const Navbar = memo(function Navbar({ lastUpdated, onShare }: NavbarProps): ReactElement {
   const now = Date.now();
   const isStale = Boolean(lastUpdated && now - lastUpdated > CACHE_TTL_MS);
 
@@ -32,13 +30,13 @@ export const Navbar = memo(function Navbar({ loading, lastUpdated, onRefresh, on
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex justify-between h-14 sm:h-16">
           <div className="flex items-center gap-2">
-            <img src="/favicon.svg" alt="Duo Owl" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg" />
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="Duo Owl" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg" />
             <span className="font-extrabold text-xl sm:text-2xl text-[#58cc02] tracking-tight hidden xs:block">DuoDash</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden md:flex flex-col items-end leading-tight">
               <span className={`text-xs font-semibold ${isStale ? 'text-amber-500' : 'text-neutral-500'}`} aria-live="polite">
-                {getUpdateStatusText(loading, lastUpdated, now)}
+                {getUpdateStatusText(false, lastUpdated, now)}
               </span>
             </div>
             {onShare && (
@@ -51,16 +49,6 @@ export const Navbar = memo(function Navbar({ loading, lastUpdated, onRefresh, on
                 <span className="hidden md:inline font-semibold text-neutral-800 text-sm">分享</span>
               </button>
             )}
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="surface-button w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 disabled:cursor-not-allowed disabled:opacity-50"
-              title="刷新数据"
-              aria-label={loading ? '正在刷新数据' : '刷新数据'}
-            >
-              <RefreshIcon className={`w-4 h-4 sm:w-5 sm:h-5 text-neutral-800 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline font-semibold text-neutral-800 text-sm">刷新</span>
-            </button>
           </div>
         </div>
       </div>

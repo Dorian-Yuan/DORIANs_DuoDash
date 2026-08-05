@@ -105,7 +105,7 @@ function DuoDashApp({ displayMode = 'standard' }: { displayMode?: DisplayMode })
         </div>
       )}
 
-      <Navbar loading={loading} lastUpdated={lastUpdated} onRefresh={refresh} onShare={() => setShowShareModal(true)} />
+      <Navbar lastUpdated={lastUpdated} onShare={() => setShowShareModal(true)} />
 
       <DashboardView
         userData={userData}

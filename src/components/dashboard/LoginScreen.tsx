@@ -30,7 +30,7 @@ export const LoginScreen = memo(function LoginScreen({ onDemo, error }: LoginScr
       <div className="w-full max-w-md animate-fade-in-up">
 
         <div className="text-center mb-6">
-          <img src="/favicon.svg" alt="DuoDash" className="w-14 h-14 mx-auto mb-3" />
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="DuoDash" className="w-14 h-14 mx-auto mb-3" />
           <h1 className="text-2xl font-extrabold text-neutral-800 tracking-tight">DuoDash</h1>
           <p className="text-neutral-500 text-xs mt-1">未检测到 Duolingo 账号配置，请完成以下步骤</p>
         </div>

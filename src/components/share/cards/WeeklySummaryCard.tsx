@@ -39,7 +39,7 @@ export const WeeklySummaryCard = forwardRef<HTMLDivElement, WeeklySummaryCardPro
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <img
-                src="/duo-owl.svg"
+                src={`${import.meta.env.BASE_URL}duo-owl.svg`}
                 alt="Duolingo"
                 className="h-7 w-7 object-contain"
               />
