@@ -22,8 +22,8 @@ const devServerConfig = getDevServerConfig();
 export default defineConfig({
   // 静态构建：数据由 GitHub Actions 定时生成 snapshot.json 提供
   output: 'static',
-  // GitHub Pages 项目页面：https://dorian-yuan.github.io/dorians_duodash/
-  base: '/dorians_duodash/',
+  // GitHub Pages 项目页面（路径大小写敏感，需与仓库名完全一致）
+  base: '/DORIANs_DuoDash/',
   devToolbar: {
     enabled: false
   },
