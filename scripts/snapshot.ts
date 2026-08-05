@@ -18,10 +18,14 @@ async function fetchWithTimeout(url: string, headers: HeadersInit, timeoutMs = D
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { headers, signal: controller.signal });
-    if (!res.ok) {
-      return { data: null, status: res.status };
+    const text = await res.text();
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
     }
-    return { data: await res.json(), status: res.status };
+    return { data, status: res.status };
   } catch {
     return { data: null, status: 0 };
   } finally {
@@ -63,7 +67,8 @@ async function main(): Promise<void> {
   const lookupUser = (lookupRaw as { users?: Array<Record<string, unknown>> })?.users?.[0] ?? lookupRaw;
   const userId = (lookupUser as { id?: string; user_id?: string })?.id ?? (lookupUser as { user_id?: string })?.user_id;
   if (!userId) {
-    fail('无法解析用户 ID（请检查 DUOLINGO_USERNAME 是否正确）');
+    const message = (lookupResult.data as { message?: string } | null)?.message;
+    fail(`无法解析用户 ID（HTTP ${lookupResult.status}${message ? `，Duolingo 返回: ${message}` : ''}）。请检查 DUOLINGO_USERNAME 是否正确`);
   }
 
   // 2) 新接口获取完整用户数据（课程 / 成就等）
