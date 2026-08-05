@@ -33,6 +33,26 @@ async function fetchWithTimeout(url: string, headers: HeadersInit, timeoutMs = D
   }
 }
 
+const MAX_RETRIES = 3;
+
+function isRetriable(result: FetchResult): boolean {
+  return result.status === 0 || result.status === 429 || result.status >= 500;
+}
+
+async function fetchWithRetry(url: string, headers: HeadersInit, timeoutMs = DEFAULT_TIMEOUT): Promise<FetchResult> {
+  let result: FetchResult = { data: null, status: 0 };
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
+    result = await fetchWithTimeout(url, headers, timeoutMs);
+    if (!isRetriable(result) || attempt === MAX_RETRIES) {
+      return result;
+    }
+    const delayMs = 3000 * attempt;
+    console.log(`[snapshot] HTTP ${result.status}（第 ${attempt}/${MAX_RETRIES} 次），${delayMs / 1000} 秒后重试...`);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return result;
+}
+
 function fail(message: string): never {
   console.error(`[snapshot] ${message}`);
   process.exit(1);
@@ -55,7 +75,7 @@ async function main(): Promise<void> {
   };
 
   // 1) 旧接口查询 userId
-  const lookupResult = await fetchWithTimeout(
+  const lookupResult = await fetchWithRetry(
     `${DUOLINGO_BASE_URL}/2017-06-30/users?username=${encodeURIComponent(username)}`,
     headers,
     10000
@@ -72,7 +92,7 @@ async function main(): Promise<void> {
   }
 
   // 2) 新接口获取完整用户数据（课程 / 成就等）
-  const mainResult = await fetchWithTimeout(
+  const mainResult = await fetchWithRetry(
     `${DUOLINGO_BASE_URL}/2023-05-23/users/${userId}`,
     headers,
     10000
@@ -86,7 +106,7 @@ async function main(): Promise<void> {
   }
 
   // 3) 获取 xp_summaries 用于构建历史数据
-  const xpResult = await fetchWithTimeout(
+  const xpResult = await fetchWithRetry(
     `${DUOLINGO_BASE_URL}/2017-06-30/users/${userId}/xp_summaries?startDate=1970-01-01`,
     headers,
     12000
