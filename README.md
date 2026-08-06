@@ -127,9 +127,9 @@ npm run dev        # 或 build + preview 查看效果
 
 站点由 GitHub Actions 工作流（`.github/workflows/deploy.yml`）全自动维护：
 
-1. **定时触发**：每天北京时间 **07:00 / 12:00 / 18:00**（cron `0 23,4,10 * * *` UTC）
-2. **拉取数据**：`npm run snapshot` 调用 Duolingo API 生成 `snapshot.json`
-3. **构建部署**：`npm run build` 后通过 `actions/deploy-pages` 发布到 GitHub Pages
+1. **推送触发**：任何推送到 `main` 分支的代码变更都会自动构建部署（数据快照同步刷新或回退到线上最新快照）
+2. **定时触发**：每天北京时间 **07:00 / 12:00 / 18:00**（cron `0 23,4,10 * * *` UTC）拉取最新数据并部署。注意 GitHub 定时任务存在排队延迟（可能数分钟至 1 小时），准点性无法保证
+3. **拉取数据**：`npm run snapshot` 调用 Duolingo API 生成 `snapshot.json`
 4. **手动触发**：仓库 Actions 页面 → `Update Data & Deploy` → Run workflow
 
 ### 配置 Secrets（一次性）

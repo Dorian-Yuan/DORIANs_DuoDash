@@ -1,8 +1,11 @@
 name: Update Data & Deploy
 
 on:
+  push:
+    branches: [main]
   schedule:
     # UTC 23:00 / 04:00 / 10:00 = 北京时间(UTC+8) 07:00 / 12:00 / 18:00
+    # 注意：GitHub 的 schedule 触发存在排队延迟（可能数分钟到 1 小时），准点性无法保证
     - cron: '0 23,4,10 * * *'
   workflow_dispatch:
 
@@ -30,11 +33,24 @@ jobs:
         run: npm ci
 
       - name: Fetch Duolingo snapshot
+        id: snapshot
         run: npm run snapshot
+        continue-on-error: true
         env:
           DUOLINGO_USERNAME: ${{ secrets.DUOLINGO_USERNAME }}
           DUOLINGO_JWT: ${{ secrets.DUOLINGO_JWT }}
           SNAPSHOT_TIMEZONE: Asia/Shanghai
+
+      # 仓库不含本地快照（.gitignore 排除）；快照拉取失败或 push 触发时，
+      # 从线上拉当前快照兜底，保证任何触发方式部署的产物都包含数据。
+      # 定时任务不兜底：JWT 过期时保持失败，以触发下方的过期 issue 提醒。
+      - name: Fallback to latest live snapshot
+        if: github.event_name != 'schedule' && hashFiles('public/snapshot.json') == ''
+        run: curl -fsSL -o public/snapshot.json https://dorian-yuan.github.io/DORIANs_DuoDash/snapshot.json || true
+
+      - name: Fail schedule run without snapshot
+        if: github.event_name == 'schedule' && hashFiles('public/snapshot.json') == ''
+        run: exit 1
 
       - name: Build static site
         run: npm run build
