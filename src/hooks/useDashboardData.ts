@@ -24,7 +24,7 @@ export function useDashboardData() {
   const [error, setError] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
-  const { lastUpdated, loadFromCache, saveToCache } = useUserDataCache();
+  const { lastUpdated, setLastUpdated, loadFromCache, saveToCache } = useUserDataCache();
 
   function resetToLogin(): void {
     try {
@@ -53,6 +53,7 @@ export function useDashboardData() {
         const cached = loadFromCache();
         if (cached) {
           setUserData(cached.data);
+          setLastUpdated(cached.timestamp);
           setShowLogin(false);
           setLoading(false);
           

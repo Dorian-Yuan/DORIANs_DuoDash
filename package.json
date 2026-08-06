@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
+    "preview": "node scripts/preview.mjs",
+    "preview:astro": "astro preview",
     "snapshot": "tsx scripts/snapshot.ts",
     "test": "node --test"
   },

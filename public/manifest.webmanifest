@@ -1,0 +1,48 @@
+{
+  "name": "DuoDash - 多邻国数据仪表盘",
+  "short_name": "DuoDash",
+  "description": "多邻国学习数据可视化仪表盘：展示你的学习进度、连胜记录和 XP 历史",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#58cc02",
+  "theme_color": "#58cc02",
+  "icons": [
+    {
+      "src": "pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "标准仪表盘",
+      "short_name": "仪表盘",
+      "url": "./",
+      "description": "打开 DuoDash 标准仪表盘"
+    },
+    {
+      "name": "大屏模式",
+      "short_name": "大屏",
+      "url": "./kiosk",
+      "description": "打开触屏优先的全屏大屏视图"
+    }
+  ]
+}

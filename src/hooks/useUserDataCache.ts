@@ -66,6 +66,7 @@ export function useUserDataCache() {
 
   return {
     lastUpdated,
+    setLastUpdated,
     loadFromCache,
     saveToCache,
   };

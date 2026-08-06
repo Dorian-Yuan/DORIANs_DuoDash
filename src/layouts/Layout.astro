@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { RefreshTimeFooter } from '../components/RefreshTimeFooter';
 
 interface Props {
   title: string;
@@ -42,6 +43,14 @@ const ogImageURL = Astro.site ? new URL('/og.jpg', Astro.site) : null;
 
     <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
 
+    <!-- PWA -->
+    <link rel="manifest" href={`${import.meta.env.BASE_URL}manifest.webmanifest`} />
+    <link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}apple-touch-icon.png`} />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DuoDash" />
+
     <title>{title}</title>
   </head>
   <body class="bg-surface-background min-h-[100dvh] flex flex-col">
@@ -59,6 +68,20 @@ const ogImageURL = Astro.site ? new URL('/og.jpg', Astro.site) : null;
       <a href={`${import.meta.env.BASE_URL}kiosk`} class="footer-link">Kiosk</a>
       <span aria-hidden="true"> · </span>
       <a href={`${import.meta.env.BASE_URL}llms.txt`} class="footer-link">llms.txt</a>
+      <RefreshTimeFooter client:load />
     </footer>
   </body>
 </html>
+
+<script>
+  // 注册 Service Worker，支持 PWA 安装与离线访问
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register(`${import.meta.env.BASE_URL}sw.js`)
+        .catch(() => {
+          // 注册失败不影响页面正常使用
+        });
+    });
+  }
+</script>
